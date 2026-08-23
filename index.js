@@ -1,4 +1,11 @@
 'use strict';
+/**
+ * Sistema de asignación de salas
+ * Paradigma asignado: Programación con bucle de eventos (Event-loop programming)
+ * Herramienta: Node.js
+ */
+
+const EventEmitter = require('events');
 
 const catalogo = [
   { id: 'A1', capacidad: 10, equipamiento: ['proyector'] },
@@ -13,10 +20,13 @@ const solicitudes = [
   { id: 3, franja: '10:00-11:00', asistentes: 5, equipamiento: [] },
   { id: 4, franja: '09:00-10:00', asistentes: 35, equipamiento: ['videoconferencia'] },
   { id: 5, franja: '10:00-11:00', asistentes: 50, equipamiento: [] },
+];
 
-  const ocupacion = new Map();
+const ocupacion = new Map();
 const aceptadas = [];
 const rechazadas = [];
+
+const bus = new EventEmitter();
 
 function cumpleRestricciones(sala, solicitud) {
   const capacidadOk = sala.capacidad >= solicitud.asistentes;
@@ -38,4 +48,29 @@ function procesarSolicitud(solicitud) {
     });
   }
 }
-];  
+
+// --- PUNTO DIFERENCIAL 1 ---
+bus.on('solicitud', (solicitud, indice) => {
+  procesarSolicitud(solicitud);
+
+  // --- PUNTO DIFERENCIAL 2 ---
+  const siguiente = indice + 1;
+  if (siguiente < solicitudes.length) {
+    setImmediate(() => bus.emit('solicitud', solicitudes[siguiente], siguiente));
+  } else {
+    setImmediate(() => bus.emit('fin'));
+  }
+});
+
+// --- PUNTO DIFERENCIAL 3 ---
+bus.on('fin', () => {
+  console.log('--- Informe de asignación de salas ---');
+  console.log('Aceptadas:');
+  aceptadas.forEach((a) =>
+    console.log(`  Solicitud ${a.solicitud} -> Sala ${a.sala} (${a.franja})`)
+  );
+  console.log('Rechazadas:');
+  rechazadas.forEach((r) => console.log(`  Solicitud ${r.solicitud} -> ${r.motivo}`));
+});
+
+bus.emit('solicitud', solicitudes[0], 0);
